@@ -1,0 +1,15 @@
+services:
+  nginx-proxy:
+    image: nginx:latest
+    container_name: nginx-proxy
+    build:
+      context: ./nginx/
+    volumes:
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 80:80
+    networks:
+      - fullstack-course-app_course-net
+networks:
+  fullstack-course-app_course-net:
+    external: true

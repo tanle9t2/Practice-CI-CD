@@ -1,0 +1,15 @@
+services:
+  react-blue:
+    image: my-react-app:latest
+    container_name: react-blue
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: always
+    networks:
+      - fullstack-course-app_course-net
+networks:
+  fullstack-course-app_course-net:
+    external: true

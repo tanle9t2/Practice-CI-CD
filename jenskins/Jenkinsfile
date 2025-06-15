@@ -1,0 +1,66 @@
+pipeline {
+  agent any
+
+  environment {
+    ACTIVE_FILE = '/tmp/active_version.txt'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Determine Target') {
+      steps {
+        script {
+          def active = fileExists(ACTIVE_FILE) ? readFile(ACTIVE_FILE).trim() : 'green'
+          def target = active == 'blue' ? 'green' : 'blue'
+          env.TARGET = target
+        }
+      }
+    }
+
+    stage('Build & Deploy') {
+      steps {
+        script {
+          def composeFile = env.TARGET == 'blue' ? 'docker-compose.blue.yml' : 'docker-compose.green.yml'
+          sh "docker-compose -f ${composeFile} up -d --build"
+        }
+      }
+    }
+    stage('Wait Until Healthy') {
+      steps {
+        script {
+          def healthUrl = env.TARGET == 'blue' ? 'http://react-blue:3000' : 'http://react-green:3000'
+
+          echo "Waiting for ${healthUrl} to become healthy..."
+          retry(3) { // try up to 20 times (approx 20 seconds)
+            sleep 1
+            def code = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" ${healthUrl}", returnStdout: true).trim()
+            if (code != '200') {
+              error("Health check failed with code ${code}")
+            }
+          }
+        }
+      }
+    }
+
+    stage('Switch Nginx Proxy') {
+      steps {
+        script {
+          def backend = env.TARGET == 'blue' ? 'react-blue:3000' : 'react-green:3000'
+
+          sh '''
+              sed "s|REPLACE_ME|''' + backend + '''|" nginx/conf.d/default.template.conf > nginx/conf.d/default.conf
+              docker cp nginx/conf.d/default.conf nginx-proxy:/tmp/default.conf
+              docker exec nginx-proxy sh -c 'cat /tmp/default.conf > /etc/nginx/conf.d/default.conf && nginx -s reload'
+            '''
+
+          writeFile file: ACTIVE_FILE, text: env.TARGET
+        }
+      }
+    }
+  }
+}
