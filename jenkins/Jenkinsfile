@@ -12,9 +12,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        // Ensure tags are fetched so git describe --tags works
-        git url: 'https://github.com/tanle9t2/Practice-CI-CD.git', branch: 'blue-green-deployment'
-        sh 'git fetch --tags'
+        checkout scm
       }
     }
 
@@ -26,7 +24,7 @@ pipeline {
         }
       }
     }
-
+    
     stage('Determine Target') {
       steps {
         script {
