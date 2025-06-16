@@ -15,15 +15,7 @@ pipeline {
         checkout scm
       }
     }
-
-    stage('Get Tag Name') {
-      steps {
-        script {
-          def tag = sh(script: "git describe --tags", returnStdout: true).trim()
-          echo "📌 Tag detected: ${tag}"
-        }
-      }
-    }
+    
     
     stage('Determine Target') {
       steps {
