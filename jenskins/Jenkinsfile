@@ -37,7 +37,7 @@ pipeline {
     stage('Wait Until Healthy') {
       steps {
         script {
-          def healthUrl = env.TARGET == 'blue' ? "http://${env.DOCKER_COMPOSE_BLUE}" : "http://${env.DOCKER_COMPOSE_GREEN}"
+          def healthUrl = env.TARGET == 'blue' ? "http://${env.BLUE_APP}" : "http://${env.GREEN_APP}"
 
           echo "Waiting for ${healthUrl} to become healthy..."
           retry(3) { // try up to 20 times (approx 20 seconds)
@@ -54,7 +54,7 @@ pipeline {
     stage('Switch Nginx Proxy') {
       steps {
         script {
-          def backend = env.TARGET == 'blue' ? env.DOCKER_COMPOSE_BLUE : env.DOCKER_COMPOSE_GREEN
+          def backend = env.TARGET == 'blue' ? env.BLUE_APP : env.GREEN_APP
           sh "./jenkins/scripts/switch_nginx.sh ${backend} ${env.ACTIVE_FILE}"
           writeFile file: ACTIVE_FILE, text: env.TARGET
         }
