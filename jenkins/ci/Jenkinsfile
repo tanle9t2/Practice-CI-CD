@@ -1,10 +1,15 @@
 pipeline {
   agent any
 
+    tools {
+    nodejs 'Node 20'           
+    }
   environment {
     CI = true
     SCANNER_HOME = tool 'sonar-scanner'
   }
+
+ 
   stages {
     stage('Checkout') {
       steps {
