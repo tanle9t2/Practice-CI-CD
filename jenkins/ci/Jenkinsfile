@@ -1,6 +1,5 @@
 pipeline {
   agent any
-
     tools {
         nodejs 'Node23'           
     }
@@ -40,18 +39,13 @@ pipeline {
         }
     }
 
-    stage("Login Docker Hub") {
-         steps {
-                withCredentials([usernamePassword(credentialsId: '9bbf88f7-54fb-4234-b7a0-03d164813d1a', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                }
-            }
-    }
     stage("Build & Push Docker Image"){
         steps {
-           sh 'docker build -t react-app:latest ../../'
-           sh 'docker tag tanle92/react-app:latest'
-           sh 'docker push tanle92/react-app:latest'
+            withDockerRegistry(credentialsId: 'dockerhub', url: 'https://index.docker.io/v1/') {
+                  sh 'docker build -t tanle92/react-app:latest .'
+                  sh 'docker push tanle92/react-app:latest'
+            }
+
         }
     }
   }

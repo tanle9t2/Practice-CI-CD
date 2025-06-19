@@ -7,6 +7,7 @@ pipeline {
     GREEN_APP = 'react-green:3000'
     DOCKER_COMPOSE_BLUE = 'docker-compose.blue.yml'
     DOCKER_COMPOSE_GREEN = 'docker-compose.green.yml'
+    IMAGE_NAME = 'tanle92/react-app:latest'
   }
 
   stages {
@@ -15,37 +16,38 @@ pipeline {
         checkout scm
       }
     }
-    
-    
+
     stage('Determine Target') {
       steps {
         script {
           def active = fileExists(ACTIVE_FILE) ? readFile(ACTIVE_FILE).trim() : 'green'
-          def target = active == 'blue' ? 'green' : 'blue'
-          env.TARGET = target
+          env.TARGET = (active == 'blue') ? 'green' : 'blue'
+          echo "Active version is: ${active}, will deploy to: ${env.TARGET}"
         }
       }
     }
 
-    stage('Build & Deploy') {
+    stage('Pull Image & Deploy') {
       steps {
         script {
-          def composeFile = env.TARGET == 'blue' ? env.DOCKER_COMPOSE_BLUE : env.DOCKER_COMPOSE_GREEN
+          def composeFile = (env.TARGET == 'blue') ? env.DOCKER_COMPOSE_BLUE : env.DOCKER_COMPOSE_GREEN
+          sh "docker pull ${env.IMAGE_NAME}"
           sh "docker-compose -f ${composeFile} up -d --build"
         }
       }
     }
-    stage('Wait Until Healthy') {
+
+    stage('Health Check') {
       steps {
         script {
-          def healthUrl = env.TARGET == 'blue' ? "http://${env.BLUE_APP}" : "http://${env.GREEN_APP}"
-
+          def healthUrl = (env.TARGET == 'blue') ? "http://${env.BLUE_APP}" : "http://${env.GREEN_APP}"
           echo "Waiting for ${healthUrl} to become healthy..."
-          retry(3) { // try up to 20 times (approx 20 seconds)
-            sleep 1
-            def code = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" ${healthUrl}", returnStdout: true).trim()
-            if (code != '200') {
-              error("Health check failed with code ${code}")
+
+          retry(10) {
+            sleep 2
+            def status = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" ${healthUrl}", returnStdout: true).trim()
+            if (status != '200') {
+              error("Health check failed with code: ${status}")
             }
           }
         }
@@ -55,9 +57,10 @@ pipeline {
     stage('Switch Nginx Proxy') {
       steps {
         script {
-          def backend = env.TARGET == 'blue' ? env.BLUE_APP : env.GREEN_APP
+          def backend = (env.TARGET == 'blue') ? env.BLUE_APP : env.GREEN_APP
           sh "./jenkins/scripts/switch_nginx.sh ${backend} ${env.ACTIVE_FILE}"
-          writeFile file: ACTIVE_FILE, text: env.TARGET
+          writeFile file: env.ACTIVE_FILE, text: env.TARGET
+          echo "Switched Nginx to: ${backend}, updated active version to: ${env.TARGET}"
         }
       }
     }
